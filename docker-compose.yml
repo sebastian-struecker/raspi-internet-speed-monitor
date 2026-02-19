@@ -1,0 +1,74 @@
+version: "3.8"
+
+services:
+
+  speedtest:
+    build:
+      context: .
+      dockerfile: Dockerfile.speedtest
+    restart: unless-stopped
+    volumes:
+      - data:/data
+    environment:
+      - SPEEDTEST_CRON=${SPEEDTEST_CRON:-0 * * * *}
+      - DB_PATH=${DB_PATH:-/data/speedtest.db}
+      - DB_RETENTION_DAYS=${DB_RETENTION_DAYS:-90}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    networks:
+      - internal
+
+  exporter:
+    build:
+      context: .
+      dockerfile: Dockerfile.exporter
+    restart: unless-stopped
+    depends_on:
+      - speedtest
+    volumes:
+      - data:/data:ro
+    environment:
+      - DB_PATH=${DB_PATH:-/data/speedtest.db}
+      - GOOGLE_SHEETS_ENABLED=${GOOGLE_SHEETS_ENABLED:-true}
+      - GOOGLE_SHEETS_SPREADSHEET_ID=${GOOGLE_SHEETS_SPREADSHEET_ID:-}
+      - GOOGLE_SERVICE_ACCOUNT_JSON=${GOOGLE_SERVICE_ACCOUNT_JSON:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+    networks:
+      - internal
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    restart: unless-stopped
+    depends_on:
+      - speedtest
+    ports:
+      - "${DASHBOARD_PORT:-8080}:${DASHBOARD_PORT:-8080}"
+    volumes:
+      - data:/data:ro
+    environment:
+      - DB_PATH=${DB_PATH:-/data/speedtest.db}
+      - DASHBOARD_PORT=${DASHBOARD_PORT:-8080}
+      - DASHBOARD_REFRESH_SECONDS=${DASHBOARD_REFRESH_SECONDS:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+    networks:
+      - internal
+
+volumes:
+  data:
+
+networks:
+  internal:
+    driver: bridge

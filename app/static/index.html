@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Internet Speed Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: #f8fafc; }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 1.2rem 1.5rem;
+      text-align: center;
+    }
+
+    .card .label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+    .card .value { font-size: 2rem; font-weight: 700; margin: .3rem 0; }
+    .card .unit  { font-size: 0.8rem; color: #94a3b8; }
+
+    .download { color: #34d399; }
+    .upload   { color: #60a5fa; }
+    .ping     { color: #f472b6; }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    input[type="datetime-local"] {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: .45rem .75rem;
+      font-size: .875rem;
+    }
+
+    button {
+      background: #3b82f6;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: .875rem;
+      padding: .5rem 1.25rem;
+    }
+    button:hover { background: #2563eb; }
+
+    .chart-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+
+    #refreshInfo { font-size: .75rem; color: #64748b; margin-top: .5rem; }
+  </style>
+</head>
+<body>
+  <h1>Internet Speed Monitor</h1>
+
+  <div class="metrics">
+    <div class="card">
+      <div class="label">Download</div>
+      <div class="value download" id="dl">—</div>
+      <div class="unit">Mbps</div>
+    </div>
+    <div class="card">
+      <div class="label">Upload</div>
+      <div class="value upload" id="ul">—</div>
+      <div class="unit">Mbps</div>
+    </div>
+    <div class="card">
+      <div class="label">Ping</div>
+      <div class="value ping" id="ping">—</div>
+      <div class="unit">ms</div>
+    </div>
+    <div class="card">
+      <div class="label">Last test</div>
+      <div class="value" style="font-size:1rem;padding-top:.6rem" id="ts">—</div>
+      <div class="unit">&nbsp;</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <label>From <input type="datetime-local" id="startDt" /></label>
+    <label>To   <input type="datetime-local" id="endDt" /></label>
+    <button onclick="loadHistory()">Load</button>
+  </div>
+
+  <div class="chart-card">
+    <canvas id="chart" height="120"></canvas>
+  </div>
+  <div id="refreshInfo"></div>
+
+  <script>
+    const AUTO_REFRESH_MS = 60_000;
+
+    // --- Chart setup ---
+    const ctx = document.getElementById('chart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Download (Mbps)', data: [], borderColor: '#34d399', tension: 0.3, fill: false },
+          { label: 'Upload (Mbps)',   data: [], borderColor: '#60a5fa', tension: 0.3, fill: false },
+          { label: 'Ping (ms)',       data: [], borderColor: '#f472b6', tension: 0.3, fill: false, hidden: true }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+        },
+        plugins: { legend: { labels: { color: '#e2e8f0' } } }
+      }
+    });
+
+    // --- Current metrics ---
+    async function loadCurrent() {
+      const res = await fetch('/api/current');
+      const data = await res.json();
+      if (!data) return;
+      document.getElementById('dl').textContent   = data.download_mbps.toFixed(1);
+      document.getElementById('ul').textContent   = data.upload_mbps.toFixed(1);
+      document.getElementById('ping').textContent = data.ping_ms.toFixed(0);
+      document.getElementById('ts').textContent   = new Date(data.timestamp).toLocaleString();
+    }
+
+    // --- History chart ---
+    async function loadHistory() {
+      const start = document.getElementById('startDt').value;
+      const end   = document.getElementById('endDt').value;
+      if (!start || !end) return;
+
+      const res  = await fetch(`/api/history?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+      const data = await res.json();
+
+      chart.data.labels              = data.map(r => new Date(r.timestamp).toLocaleTimeString());
+      chart.data.datasets[0].data   = data.map(r => r.download_mbps);
+      chart.data.datasets[1].data   = data.map(r => r.upload_mbps);
+      chart.data.datasets[2].data   = data.map(r => r.ping_ms);
+      chart.update();
+    }
+
+    // --- Default range: last 24 hours ---
+    function setDefaultRange() {
+      const now   = new Date();
+      const since = new Date(now - 24 * 60 * 60 * 1000);
+      const fmt   = d => d.toISOString().slice(0, 16);
+      document.getElementById('startDt').value = fmt(since);
+      document.getElementById('endDt').value   = fmt(now);
+    }
+
+    // --- Auto-refresh ---
+    function scheduleRefresh() {
+      const next = new Date(Date.now() + AUTO_REFRESH_MS);
+      document.getElementById('refreshInfo').textContent =
+        `Auto-refresh at ${next.toLocaleTimeString()}`;
+    }
+
+    async function refresh() {
+      await loadCurrent();
+      await loadHistory();
+      scheduleRefresh();
+    }
+
+    // --- Init ---
+    setDefaultRange();
+    refresh();
+    setInterval(refresh, AUTO_REFRESH_MS);
+  </script>
+</body>
+</html>

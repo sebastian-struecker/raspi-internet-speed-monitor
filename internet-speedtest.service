@@ -1,0 +1,16 @@
+[Unit]
+Description=Internet Speed Monitor (Docker Compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/raspi-internet-speed-monitor
+ExecStart=/usr/local/bin/docker-compose up -d
+ExecStop=/usr/local/bin/docker-compose down
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
