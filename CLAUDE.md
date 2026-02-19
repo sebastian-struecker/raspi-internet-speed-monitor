@@ -24,13 +24,13 @@ pytest tests/property/ -v --hypothesis-show-statistics
 pytest tests/unit/test_database.py -v
 
 # Start all containers
-docker-compose up -d --build
+docker compose up -d --build
 
 # View logs for a specific service
-docker-compose logs -f speedtest
+docker compose logs -f speedtest
 
 # Stop all containers
-docker-compose down
+docker compose down
 ```
 
 Tests need a venv with `requirements-dev.txt` installed. There is no pre-existing venv committed; create one with
@@ -105,7 +105,7 @@ All settings are read from environment variables via `Config.from_env()`:
 | `DASHBOARD_REFRESH_SECONDS`    | `60`                 | Browser auto-refresh interval         |
 | `LOG_LEVEL`                    | `INFO`               | `DEBUG`/`INFO`/`WARNING`/`ERROR`      |
 
-Copy `.env.example` to `.env` and fill in values before running `docker-compose up`.
+Copy `.env.example` to `.env` and fill in values before running `docker compose up`.
 
 ## Testing
 

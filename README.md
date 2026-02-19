@@ -82,7 +82,7 @@ Skip this step if you set `GOOGLE_SHEETS_ENABLED=false`.
 ### 4. Build and start the containers
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 The first build takes a few minutes while Python dependencies are installed. Subsequent starts are fast.
@@ -90,7 +90,7 @@ The first build takes a few minutes while Python dependencies are installed. Sub
 Verify all three containers are running:
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 ### 5. Open the dashboard
@@ -131,12 +131,12 @@ sudo systemctl status internet-speedtest.service
 
 | Task                       | Command                            |
 |----------------------------|------------------------------------|
-| Start the stack            | `docker-compose up -d`             |
-| Stop the stack             | `docker-compose down`              |
-| View all logs              | `docker-compose logs -f`           |
-| View logs for one service  | `docker-compose logs -f speedtest` |
-| Restart a single service   | `docker-compose restart dashboard` |
-| Update after a code change | `docker-compose up -d --build`     |
+| Start the stack            | `docker compose up -d`             |
+| Stop the stack             | `docker compose down`              |
+| View all logs              | `docker compose logs -f`           |
+| View logs for one service  | `docker compose logs -f speedtest` |
+| Restart a single service   | `docker compose restart dashboard` |
+| Update after a code change | `docker compose up -d --build`     |
 
 ---
 
