@@ -25,10 +25,9 @@ services:
       context: .
       dockerfile: Dockerfile.dashboard
     restart: unless-stopped
+    network_mode: host
     depends_on:
       - speedtest
-    ports:
-      - "${DASHBOARD_PORT:-8080}:${DASHBOARD_PORT:-8080}"
     volumes:
       - data:/data:ro
     environment:
