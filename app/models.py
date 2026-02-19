@@ -122,13 +122,6 @@ class DatabaseConfig:
 
 
 @dataclass
-class GoogleSheetsConfig:
-    enabled: bool = True
-    spreadsheet_id: str = ""
-    credentials_json: str = ""  # full JSON content of the service account key
-
-
-@dataclass
 class DashboardConfig:
     port: int = 8080
     auto_refresh_seconds: int = 60
@@ -145,7 +138,6 @@ class Config:
 
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
-    google_sheets: GoogleSheetsConfig = field(default_factory=GoogleSheetsConfig)
     dashboard: DashboardConfig = field(default_factory=DashboardConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
@@ -169,11 +161,6 @@ class Config:
                 path=os.environ.get("DB_PATH", "/data/speedtest.db"),
                 retention_days=int(os.environ.get("DB_RETENTION_DAYS", "90")),
             ),
-            google_sheets=GoogleSheetsConfig(
-                enabled=_bool(os.environ.get("GOOGLE_SHEETS_ENABLED", "true")),
-                spreadsheet_id=os.environ.get("GOOGLE_SHEETS_SPREADSHEET_ID", ""),
-                credentials_json=os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", ""),
-            ),
             dashboard=DashboardConfig(
                 port=int(os.environ.get("DASHBOARD_PORT", "8080")),
                 auto_refresh_seconds=int(os.environ.get("DASHBOARD_REFRESH_SECONDS", "60")),
@@ -194,14 +181,12 @@ class Config:
 
         schedule_data = data.get("schedule", {}) or {}
         database_data = data.get("database", {}) or {}
-        google_sheets_data = data.get("google_sheets", {}) or {}
         dashboard_data = data.get("dashboard", {}) or {}
         logging_data = data.get("logging", {}) or {}
 
         return cls(
             schedule=ScheduleConfig(**{k: v for k, v in schedule_data.items() if k in ScheduleConfig.__dataclass_fields__}),
             database=DatabaseConfig(**{k: v for k, v in database_data.items() if k in DatabaseConfig.__dataclass_fields__}),
-            google_sheets=GoogleSheetsConfig(**{k: v for k, v in google_sheets_data.items() if k in GoogleSheetsConfig.__dataclass_fields__}),
             dashboard=DashboardConfig(**{k: v for k, v in dashboard_data.items() if k in DashboardConfig.__dataclass_fields__}),
             logging=LoggingConfig(**{k: v for k, v in logging_data.items() if k in LoggingConfig.__dataclass_fields__}),
         )
@@ -215,12 +200,6 @@ class Config:
 
         if self.database.retention_days < 0:
             errors.append("retention_days must be non-negative")
-
-        if self.google_sheets.enabled and not self.google_sheets.spreadsheet_id:
-            errors.append("spreadsheet_id is required when google_sheets.enabled is true")
-
-        if self.google_sheets.enabled and not self.google_sheets.credentials_json:
-            errors.append("credentials_json is required when google_sheets.enabled is true")
 
         if not (1 <= self.dashboard.port <= 65535):
             errors.append(f"Invalid port number: {self.dashboard.port}")
@@ -243,10 +222,6 @@ class Config:
             "database": {
                 "path": self.database.path,
                 "retention_days": self.database.retention_days,
-            },
-            "google_sheets": {
-                "enabled": self.google_sheets.enabled,
-                "spreadsheet_id": self.google_sheets.spreadsheet_id,
             },
             "dashboard": {
                 "port": self.dashboard.port,

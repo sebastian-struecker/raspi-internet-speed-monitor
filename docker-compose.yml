@@ -20,28 +20,6 @@ services:
         limits:
           memory: 200M
 
-  exporter:
-    build:
-      context: .
-      dockerfile: Dockerfile.exporter
-    restart: unless-stopped
-    depends_on:
-      - speedtest
-    volumes:
-      - data:/data:ro
-    environment:
-      - DB_PATH=${DB_PATH:-/data/speedtest.db}
-      - GOOGLE_SHEETS_ENABLED=${GOOGLE_SHEETS_ENABLED:-true}
-      - GOOGLE_SHEETS_SPREADSHEET_ID=${GOOGLE_SHEETS_SPREADSHEET_ID:-}
-      - GOOGLE_SERVICE_ACCOUNT_JSON=${GOOGLE_SERVICE_ACCOUNT_JSON:-}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    deploy:
-      resources:
-        limits:
-          memory: 150M
-    networks:
-      - internal
-
   dashboard:
     build:
       context: .
@@ -62,12 +40,6 @@ services:
       resources:
         limits:
           memory: 150M
-    networks:
-      - internal
 
 volumes:
   data:
-
-networks:
-  internal:
-    driver: bridge

@@ -12,7 +12,7 @@ import yaml
 
 from hypothesis import given, settings, strategies as st
 
-from app.models import Config, ScheduleConfig, DatabaseConfig, GoogleSheetsConfig, DashboardConfig, LoggingConfig
+from app.models import Config, ScheduleConfig, DatabaseConfig, DashboardConfig, LoggingConfig
 
 
 # ---------------------------------------------------------------------------
@@ -51,12 +51,6 @@ valid_config_strategy = st.builds(
         path=st.just("/data/speedtest.db"),
         retention_days=st.integers(min_value=0, max_value=3650),
     ),
-    google_sheets=st.builds(
-        GoogleSheetsConfig,
-        enabled=st.just(True),
-        spreadsheet_id=st.text(min_size=1, max_size=80, alphabet=st.characters(whitelist_categories=("L", "N"))),
-        credentials_json=st.just(""),
-    ),
     dashboard=st.builds(DashboardConfig, port=valid_port, auto_refresh_seconds=st.integers(min_value=5, max_value=3600)),
     logging=st.builds(LoggingConfig, level=st.sampled_from(["DEBUG", "INFO", "WARNING", "ERROR"])),
 )
@@ -73,7 +67,6 @@ def test_invalid_cron_always_reported(cron):
     """Property 16 (partial): Invalid CRON expressions are always flagged."""
     config = Config.default()
     config.schedule.cron = cron
-    config.google_sheets.enabled = False
     errors = config.validate()
     assert any("CRON" in e for e in errors), f"Expected error for CRON {cron!r}"
 
@@ -85,7 +78,6 @@ def test_negative_retention_always_reported(retention):
     """Property 16 (partial): Negative retention_days is always flagged."""
     config = Config.default()
     config.database.retention_days = retention
-    config.google_sheets.enabled = False
     errors = config.validate()
     assert any("retention_days" in e for e in errors)
 
@@ -97,7 +89,6 @@ def test_invalid_port_always_reported(port):
     """Property 16 (partial): Out-of-range port numbers are always flagged."""
     config = Config.default()
     config.dashboard.port = port
-    config.google_sheets.enabled = False
     errors = config.validate()
     assert any("port" in e for e in errors)
 
@@ -105,30 +96,14 @@ def test_invalid_port_always_reported(port):
 @given(cron=VALID_CRONS, port=valid_port, retention=st.integers(min_value=0))
 @settings(max_examples=100)
 @pytest.mark.property_test
-def test_valid_config_without_sheets_has_no_errors(cron, port, retention):
-    """Property 16 (partial): Valid config with sheets disabled produces no errors."""
+def test_valid_config_has_no_errors(cron, port, retention):
+    """Property 16 (partial): Valid config produces no errors."""
     config = Config.default()
     config.schedule.cron = cron
     config.dashboard.port = port
     config.database.retention_days = retention
-    config.google_sheets.enabled = False
     errors = config.validate()
     assert errors == []
-
-
-@given(cron=VALID_CRONS, port=valid_port, retention=st.integers(min_value=0))
-@settings(max_examples=100)
-@pytest.mark.property_test
-def test_sheets_enabled_without_spreadsheet_id_always_reported(cron, port, retention):
-    """Property 16 (partial): Missing spreadsheet_id with sheets enabled is always flagged."""
-    config = Config.default()
-    config.schedule.cron = cron
-    config.dashboard.port = port
-    config.database.retention_days = retention
-    config.google_sheets.enabled = True
-    config.google_sheets.spreadsheet_id = ""
-    errors = config.validate()
-    assert any("spreadsheet_id" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
@@ -149,8 +124,6 @@ def test_config_roundtrip_preserves_structure(config):
         assert loaded.schedule.cron == config.schedule.cron
         assert loaded.database.path == config.database.path
         assert loaded.database.retention_days == config.database.retention_days
-        assert loaded.google_sheets.enabled == config.google_sheets.enabled
-        assert loaded.google_sheets.spreadsheet_id == config.google_sheets.spreadsheet_id
         assert loaded.dashboard.port == config.dashboard.port
         assert loaded.dashboard.auto_refresh_seconds == config.dashboard.auto_refresh_seconds
         assert loaded.logging.level == config.logging.level
