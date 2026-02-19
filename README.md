@@ -1,4 +1,6 @@
-# raspi-internet-speed-monitor
+# Raspi Internet Speed Monitor
+
+> Warning: This project was vibe-coded. Please help in making this even better.
 
 A self-hosted internet speed monitor designed to run on a **Raspberry Pi 3**. It periodically measures download/upload
 speeds and ping, stores results in a local SQLite database, exports them to Google Sheets, and serves a live dashboard
@@ -6,7 +8,7 @@ in your browser.
 
 ## How it works
 
-Four Docker containers run as a stack and communicate through a shared SQLite volume:
+Three Docker containers run as a stack and communicate through a shared SQLite volume:
 
 | Container         | Role                                                                 |
 |-------------------|----------------------------------------------------------------------|

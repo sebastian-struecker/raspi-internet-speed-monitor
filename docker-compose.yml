@@ -7,6 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile.speedtest
     restart: unless-stopped
+    network_mode: host
     volumes:
       - data:/data
     environment:
@@ -18,8 +19,6 @@ services:
       resources:
         limits:
           memory: 200M
-    networks:
-      - internal
 
   exporter:
     build:
