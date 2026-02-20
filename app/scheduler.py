@@ -43,42 +43,41 @@ class Scheduler:
         return DEFAULT_CRON
 
     # ------------------------------------------------------------------
-    # APScheduler integration
-    # ------------------------------------------------------------------
-
-    def _build_scheduler(self, cron: str):
-        from apscheduler.schedulers.background import BackgroundScheduler
-        from apscheduler.triggers.cron import CronTrigger
-
-        sched = BackgroundScheduler()
-        minute, hour, day, month, day_of_week = cron.split()
-        trigger = CronTrigger(
-            minute=minute,
-            hour=hour,
-            day=day,
-            month=month,
-            day_of_week=day_of_week,
-        )
-        sched.add_job(self.on_trigger, trigger, id="speedtest")
-        return sched
-
-    # ------------------------------------------------------------------
-    # Lifecycle
+    # Simple croniter-based scheduling (runs in main thread)
     # ------------------------------------------------------------------
 
     def run(self) -> None:
         """Start the scheduler and block until stopped."""
+        from datetime import datetime
+        from croniter import croniter
+
         logger.info("Starting scheduler with CRON %r", self._cron)
-        self._scheduler = self._build_scheduler(self._cron)
-        self._scheduler.start()
+        logger.info("Using main-thread execution (no APScheduler threading)")
+
+        cron = croniter(self._cron, datetime.now())
+        next_run = cron.get_next(datetime)
+        logger.info("Next run scheduled at: %s", next_run)
 
         try:
             while not self._stop_event.is_set():
+                now = datetime.now()
+
+                if now >= next_run:
+                    logger.info("Triggering scheduled job at %s", now)
+                    try:
+                        self.on_trigger()
+                    except Exception as e:
+                        logger.exception("Job execution failed: %s", e)
+
+                    # Calculate next run time
+                    next_run = cron.get_next(datetime)
+                    logger.info("Next run scheduled at: %s", next_run)
+
+                # Sleep for a short interval
                 time.sleep(1)
+
         finally:
             self._stop_event.set()
-            if self._scheduler and self._scheduler.running:
-                self._scheduler.shutdown()
 
     def stop(self) -> None:
         self._stop_event.set()

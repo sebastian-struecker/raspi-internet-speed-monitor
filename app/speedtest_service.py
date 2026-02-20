@@ -15,8 +15,8 @@ def setup_logging(level: str) -> None:
         level=getattr(logging, level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s — %(message)s",
     )
-    # Enable APScheduler job execution logging
-    logging.getLogger("apscheduler.executors.default").setLevel(logging.INFO)
+    # Enable APScheduler logging for cleanup job
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
 
 def run_cleanup(db: Database, config: Config) -> None:

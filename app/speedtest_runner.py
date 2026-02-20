@@ -39,7 +39,13 @@ class SpeedtestRunner:
                 raise ImportError("speedtest-cli is not installed")
 
             logger.info("Starting speed test…")
-            st = _st_module.Speedtest(secure=True)
+            # Try secure=True first, fall back to secure=False if it fails
+            try:
+                st = _st_module.Speedtest(secure=True)
+                logger.debug("  Using secure HTTPS connection")
+            except Exception as e:
+                logger.warning("  Secure connection failed (%s), trying insecure", e)
+                st = _st_module.Speedtest(secure=False)
 
             logger.info("  → Finding best server…")
             st.get_best_server()
@@ -75,6 +81,13 @@ class SpeedtestRunner:
 
         except Exception as exc:
             logger.error("Speed test failed: %s", exc)
+            logger.debug("Full exception details:", exc_info=True)
+            # Log additional debugging info
+            import sys
+            logger.debug("  Python version: %s", sys.version)
+            logger.debug("  speedtest-cli module: %s", _st_module)
+            if hasattr(exc, '__dict__'):
+                logger.debug("  Exception attributes: %s", exc.__dict__)
             return SpeedTestResult(
                 timestamp=_utcnow(),
                 download_mbps=0.0,
