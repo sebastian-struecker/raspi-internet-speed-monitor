@@ -35,6 +35,8 @@ For deployment behind nginx on Raspberry Pi:
    ```
 
 2. **Configure nginx** (see NGINX_PROXY_SETUP.md)
+   - Nginx must be running and exposing port 8080
+   - Nginx routes `/internet-speed-dashboard/` to this container
 
 ### Deploy
 
@@ -47,6 +49,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 - API: http://raspberry-pi-ip:8080/internet-speed-dashboard/api/history
 
 **Configuration file:** `.env` (for production settings)
+
+**Important:** In production mode, the speed monitor does NOT expose port 8080 directly. Nginx handles external access and routes traffic to the container via the `webapps_network` Docker network.
 
 ---
 
@@ -68,13 +72,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 - `docker compose up` automatically loads `docker-compose.override.yml`
 - Override file uses `.env.local` for environment variables
 - Network created automatically (not external)
-- Port 8080 exposed
+- Port 8080 exposed directly for testing
 
 **Production:**
 - Explicit command: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up`
 - Uses `.env` for environment variables
-- External network required
+- External network required (`webapps_network`)
 - URL prefix: `/internet-speed-dashboard`
+- **No port exposure** - nginx handles external access via Docker network
 
 ---
 
@@ -132,12 +137,27 @@ LOG_LEVEL=INFO
 docker network create webapps_network
 ```
 
+### "Port 8080 already allocated" (Production)
+
+This is **expected**! In production mode, the speed monitor doesn't expose ports.
+
+**Cause:** Your nginx reverse proxy is already using port 8080.
+
+**Solution:** Make sure you're using the production compose command:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+The production config does NOT expose ports - nginx routes traffic via Docker network.
+
 ### Dashboard shows blank page in production
 
 **Check:**
 1. Nginx config routes `/internet-speed-dashboard/` correctly
-2. URL_PREFIX is set in `.env`
-3. Used production compose file: `-f docker-compose.prod.yml`
+2. Nginx container is on `webapps_network`
+3. URL_PREFIX is set in `.env`
+4. Used production compose file: `-f docker-compose.prod.yml`
+5. Nginx is routing to `internet-speed-monitor-dashboard:8080` (container name)
 
 ### Changes to .env.local not taking effect
 

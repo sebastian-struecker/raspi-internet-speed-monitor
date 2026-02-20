@@ -1,14 +1,15 @@
 # Production/Reverse Proxy configuration
 # Use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# IMPORTANT: In reverse proxy mode, ports are NOT exposed.
+# Nginx routes traffic to containers via the webapps_network Docker network.
 
 services:
   dashboard:
     # Use production environment file
     env_file:
       - .env
-    # Port exposed for reverse proxy access
-    ports:
-      - "${DASHBOARD_PORT:-8080}:8080"
+    # NO ports exposed - nginx handles external access via Docker network
 
   speedtest:
     env_file:
