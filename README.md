@@ -2,7 +2,7 @@
 
 > Warning: This project was vibe-coded. Please help in making this even better.
 
-A self-hosted internet speed monitor designed to run on a **Raspberry Pi 3**. It periodically measures download/upload
+A self-hosted internet speed monitor designed to run on a **Raspberry Pi**. It periodically measures download/upload
 speeds and ping, stores results in a local SQLite database, exports them to Google Sheets, and serves a live dashboard
 in your browser.
 
@@ -23,7 +23,7 @@ All settings are controlled by environment variables — no config files to moun
 
 ## Requirements
 
-- Raspberry Pi 3 (or any ARM/x86 host running Linux)
+- Raspberry Pi (or any ARM/x86 host running Linux)
 - Docker ≥ 20.10
 - Docker Compose ≥ 1.29
 - Internet connection
@@ -45,19 +45,8 @@ cd raspi-internet-speed-monitor
 cp .env.example .env
 ```
 
-Open `.env` and fill in your values. The minimum required changes are:
-
-```bash
-# How often to run a speed test (standard 5-field CRON)
-SPEEDTEST_CRON=0 * * * *
-
-# Set to false if you don't need Google Sheets export
-GOOGLE_SHEETS_ENABLED=true
-GOOGLE_SHEETS_SPREADSHEET_ID=      # paste your Sheet ID here
-GOOGLE_SERVICE_ACCOUNT_JSON=       # paste your service account JSON here (see below)
-```
-
-All other variables have sensible defaults. See the [Configuration reference](#configuration-reference) below.
+Open `.env` and fill in your values.
+All variables have sensible defaults. See the [Configuration reference](#configuration-reference) below.
 
 ### 3. Build and start the containers
 
@@ -147,7 +136,6 @@ All settings are read from environment variables (defined in `.env`).
 │   ├── database.py          # SQLite wrapper
 │   ├── speedtest_runner.py  # Speed test execution and retry logic
 │   ├── scheduler.py         # CRON scheduling via APScheduler
-│   ├── exporter.py          # Google Sheets exporter
 │   ├── dashboard.py         # Flask REST API (/api/current, /api/history, /api/stats)
 │   ├── static/index.html    # Chart.js web dashboard
 │   └── *_service.py         # Container entry points
@@ -157,7 +145,6 @@ All settings are read from environment variables (defined in `.env`).
 ├── .env.example             # Environment variable template — copy to .env and fill in
 ├── docker-compose.yml
 ├── Dockerfile.speedtest
-├── Dockerfile.exporter
 ├── Dockerfile.dashboard
 └── internet-speedtest.service  # systemd unit for auto-start
 ```
