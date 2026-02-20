@@ -41,7 +41,7 @@ def main() -> None:
     logger = logging.getLogger(__name__)
 
     logger.info("=" * 60)
-    logger.info("🚀 Speedtest Service Starting")
+    logger.info("Speedtest Service Starting")
     logger.info("=" * 60)
     logger.info("Configuration:")
     logger.info("  CRON Schedule:    %s", config.schedule.cron)

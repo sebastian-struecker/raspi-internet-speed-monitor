@@ -59,27 +59,7 @@ GOOGLE_SERVICE_ACCOUNT_JSON=       # paste your service account JSON here (see b
 
 All other variables have sensible defaults. See the [Configuration reference](#configuration-reference) below.
 
-### 3. Set up Google Sheets credentials (optional)
-
-Skip this step if you set `GOOGLE_SHEETS_ENABLED=false`.
-
-1. Open the [Google Cloud Console](https://console.cloud.google.com/) and create or select a project.
-2. Enable the **Google Sheets API** for the project.
-3. Go to **IAM & Admin → Service Accounts** and create a new service account.
-4. Create a JSON key for that account and download it.
-5. Open the downloaded `.json` file and collapse it to a single line (remove all newlines). Set it as
-   `GOOGLE_SERVICE_ACCOUNT_JSON` in your `.env`:
-   ```
-   GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"my-project",...}
-   ```
-6. Share your Google Sheet with the service account's email address (found under `"client_email"` in the JSON), granting
-   it **Editor** access.
-7. Copy the spreadsheet ID from the Sheet URL into `GOOGLE_SHEETS_SPREADSHEET_ID`:
-   ```
-   https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit
-   ```
-
-### 4. Build and start the containers
+### 3. Build and start the containers
 
 ```bash
 docker compose up -d --build
@@ -93,7 +73,7 @@ Verify all three containers are running:
 docker compose ps
 ```
 
-### 5. Open the dashboard
+### 4. Open the dashboard
 
 Navigate to `http://<raspberry-pi-ip>:8080` in your browser. The dashboard auto-refreshes every 60 seconds and displays
 a time-series chart of recent results.
