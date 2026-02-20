@@ -144,10 +144,20 @@
       const res = await fetch('/api/current');
       const data = await res.json();
       if (!data) return;
-      document.getElementById('dl').textContent   = data.download_mbps.toFixed(1);
-      document.getElementById('ul').textContent   = data.upload_mbps.toFixed(1);
-      document.getElementById('ping').textContent = data.ping_ms.toFixed(0);
-      document.getElementById('ts').textContent   = new Date(data.timestamp).toLocaleString();
+      if (data.success) {
+        document.getElementById('dl').textContent   = data.download_mbps.toFixed(1);
+        document.getElementById('ul').textContent   = data.upload_mbps.toFixed(1);
+        document.getElementById('ping').textContent = data.ping_ms.toFixed(0);
+      } else {
+        const msg = data.error_message || 'Test failed';
+        document.getElementById('dl').textContent   = 'Err';
+        document.getElementById('ul').textContent   = 'Err';
+        document.getElementById('ping').textContent = 'Err';
+        document.getElementById('dl').title   = msg;
+        document.getElementById('ul').title   = msg;
+        document.getElementById('ping').title = msg;
+      }
+      document.getElementById('ts').textContent = new Date(data.timestamp).toLocaleString();
     }
 
     // --- History chart ---
@@ -159,10 +169,12 @@
       const res  = await fetch(`/api/history?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
       const data = await res.json();
 
-      chart.data.labels              = data.map(r => new Date(r.timestamp).toLocaleTimeString());
-      chart.data.datasets[0].data   = data.map(r => r.download_mbps);
-      chart.data.datasets[1].data   = data.map(r => r.upload_mbps);
-      chart.data.datasets[2].data   = data.map(r => r.ping_ms);
+      // Exclude failed tests so their 0-values don't distort the chart
+      const ok = data.filter(r => r.success);
+      chart.data.labels             = ok.map(r => new Date(r.timestamp).toLocaleTimeString());
+      chart.data.datasets[0].data  = ok.map(r => r.download_mbps);
+      chart.data.datasets[1].data  = ok.map(r => r.upload_mbps);
+      chart.data.datasets[2].data  = ok.map(r => r.ping_ms);
       chart.update();
     }
 

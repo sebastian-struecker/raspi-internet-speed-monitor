@@ -84,10 +84,14 @@ def create_app(db: Database, static_folder: str = None) -> Flask:
         if not results:
             return jsonify(None), 200
 
-        downloads = [r.download_mbps for r in results]
-        uploads = [r.upload_mbps for r in results]
-        pings = [r.ping_ms for r in results]
-        failed = sum(1 for r in results if not r.success)
+        successful = [r for r in results if r.success]
+        if not successful:
+            return jsonify(None), 200
+
+        downloads = [r.download_mbps for r in successful]
+        uploads = [r.upload_mbps for r in successful]
+        pings = [r.ping_ms for r in successful]
+        failed = len(results) - len(successful)
 
         stats = Statistics(
             avg_download_mbps=sum(downloads) / len(downloads),
@@ -99,7 +103,7 @@ def create_app(db: Database, static_folder: str = None) -> Flask:
             max_upload_mbps=max(uploads),
             min_ping_ms=min(pings),
             max_ping_ms=max(pings),
-            total_tests=len(results),
+            total_tests=len(results),  # all tests including failures
             failed_tests=failed,
             period_start=start,
             period_end=end,
