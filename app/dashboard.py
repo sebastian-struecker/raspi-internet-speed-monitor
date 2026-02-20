@@ -37,14 +37,6 @@ def create_app(db: Database, static_folder: str = None) -> Flask:
     # API endpoints
     # ------------------------------------------------------------------
 
-    @app.route("/api/current")
-    def get_current():
-        """Return the most recent speed test result."""
-        results = _db().get_latest(limit=1)
-        if not results:
-            return jsonify(None), 200
-        return jsonify(results[0].to_dict())
-
     @app.route("/api/history")
     def get_history():
         """Return results within a date range.

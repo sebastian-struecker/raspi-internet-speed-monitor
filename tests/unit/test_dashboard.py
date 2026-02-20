@@ -34,33 +34,6 @@ def insert(db, ts, download=100.0, upload=20.0, ping=10.0, success=True):
 
 
 # ---------------------------------------------------------------------------
-# /api/current
-# ---------------------------------------------------------------------------
-
-def test_current_returns_null_when_empty(client):
-    resp = client.get("/api/current")
-    assert resp.status_code == 200
-    assert resp.get_json() is None
-
-
-def test_current_returns_most_recent_result(client, db):
-    insert(db, datetime(2024, 1, 1), download=50.0)
-    insert(db, datetime(2024, 1, 2), download=90.0)
-
-    resp = client.get("/api/current")
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["download_mbps"] == 90.0
-
-
-def test_current_contains_required_fields(client, db):
-    insert(db, datetime(2024, 6, 15, 10, 0))
-    data = client.get("/api/current").get_json()
-    for field in ("download_mbps", "upload_mbps", "ping_ms", "timestamp"):
-        assert field in data, f"Missing field: {field}"
-
-
-# ---------------------------------------------------------------------------
 # /api/history
 # ---------------------------------------------------------------------------
 

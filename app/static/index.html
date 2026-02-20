@@ -82,23 +82,23 @@
 
   <div class="metrics">
     <div class="card">
-      <div class="label">Download</div>
-      <div class="value download" id="dl">—</div>
+      <div class="label">Avg Download</div>
+      <div class="value download" id="avgDl">—</div>
       <div class="unit">Mbps</div>
     </div>
     <div class="card">
-      <div class="label">Upload</div>
-      <div class="value upload" id="ul">—</div>
+      <div class="label">Avg Upload</div>
+      <div class="value upload" id="avgUl">—</div>
       <div class="unit">Mbps</div>
     </div>
     <div class="card">
-      <div class="label">Ping</div>
-      <div class="value ping" id="ping">—</div>
+      <div class="label">Avg Ping</div>
+      <div class="value ping" id="avgPing">—</div>
       <div class="unit">ms</div>
     </div>
     <div class="card">
-      <div class="label">Last test</div>
-      <div class="value" style="font-size:1rem;padding-top:.6rem" id="ts">—</div>
+      <div class="label">Tests Today</div>
+      <div class="value" style="font-size:1.5rem;padding-top:.6rem" id="testsToday">—</div>
       <div class="unit">&nbsp;</div>
     </div>
   </div>
@@ -139,25 +139,28 @@
       }
     });
 
-    // --- Current metrics ---
-    async function loadCurrent() {
-      const res = await fetch('/api/current');
+    // --- Today's averages ---
+    async function loadTodayStats() {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const start = startOfDay.toISOString();
+      const end = now.toISOString();
+
+      const res = await fetch(`/api/stats?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
       const data = await res.json();
-      if (!data) return;
-      if (data.success) {
-        document.getElementById('dl').textContent   = data.download_mbps.toFixed(1);
-        document.getElementById('ul').textContent   = data.upload_mbps.toFixed(1);
-        document.getElementById('ping').textContent = data.ping_ms.toFixed(0);
-      } else {
-        const msg = data.error_message || 'Test failed';
-        document.getElementById('dl').textContent   = 'Err';
-        document.getElementById('ul').textContent   = 'Err';
-        document.getElementById('ping').textContent = 'Err';
-        document.getElementById('dl').title   = msg;
-        document.getElementById('ul').title   = msg;
-        document.getElementById('ping').title = msg;
+
+      if (!data) {
+        document.getElementById('avgDl').textContent = '—';
+        document.getElementById('avgUl').textContent = '—';
+        document.getElementById('avgPing').textContent = '—';
+        document.getElementById('testsToday').textContent = '0';
+        return;
       }
-      document.getElementById('ts').textContent = new Date(data.timestamp).toLocaleString();
+
+      document.getElementById('avgDl').textContent = data.averages.download_mbps.toFixed(1);
+      document.getElementById('avgUl').textContent = data.averages.upload_mbps.toFixed(1);
+      document.getElementById('avgPing').textContent = data.averages.ping_ms.toFixed(0);
+      document.getElementById('testsToday').textContent = data.tests.total;
     }
 
     // --- History chart ---
@@ -195,7 +198,7 @@
     }
 
     async function refresh() {
-      await loadCurrent();
+      await loadTodayStats();
       await loadHistory();
       scheduleRefresh();
     }
