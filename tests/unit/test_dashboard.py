@@ -15,7 +15,17 @@ def db():
 
 @pytest.fixture
 def client(db):
-    app = create_app(db)
+    """Client for standalone mode (no URL prefix)."""
+    app = create_app(db, url_prefix="")
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        yield c
+
+
+@pytest.fixture
+def client_with_prefix(db):
+    """Client for reverse proxy mode (with URL prefix)."""
+    app = create_app(db, url_prefix="/internet-speed-dashboard")
     app.config["TESTING"] = True
     with app.test_client() as c:
         yield c
@@ -131,3 +141,39 @@ def test_stats_contains_all_fields(client, db):
 
 def test_stats_requires_start_and_end(client):
     assert client.get("/api/stats").status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# URL Prefix Support (Reverse Proxy Mode)
+# ---------------------------------------------------------------------------
+
+def test_index_with_url_prefix(client_with_prefix):
+    """Verify that the index page works with URL prefix."""
+    resp = client_with_prefix.get("/internet-speed-dashboard/")
+    assert resp.status_code == 200
+    # Check that the base tag is rendered with the prefix
+    assert b'<base href="/internet-speed-dashboard/"' in resp.data
+
+
+def test_api_with_url_prefix(client_with_prefix, db):
+    """Verify that API endpoints work with URL prefix."""
+    base = datetime(2024, 6, 1)
+    insert(db, base)
+
+    start = base.isoformat()
+    end = (base + timedelta(hours=1)).isoformat()
+
+    # API endpoints should be accessible under the prefix
+    resp = client_with_prefix.get(f"/internet-speed-dashboard/api/history?start={start}&end={end}")
+    assert resp.status_code == 200
+
+    resp = client_with_prefix.get(f"/internet-speed-dashboard/api/stats?start={start}&end={end}")
+    assert resp.status_code == 200
+
+
+def test_index_without_prefix_in_standalone_mode(client):
+    """Verify that index page works without prefix in standalone mode."""
+    resp = client.get("/")
+    assert resp.status_code == 200
+    # Should NOT have a base tag in standalone mode
+    assert b'<base href=' not in resp.data

@@ -125,6 +125,7 @@ class DatabaseConfig:
 class DashboardConfig:
     port: int = 8080
     auto_refresh_seconds: int = 60
+    url_prefix: str = ""
 
 
 @dataclass
@@ -164,6 +165,7 @@ class Config:
             dashboard=DashboardConfig(
                 port=int(os.environ.get("DASHBOARD_PORT", "8080")),
                 auto_refresh_seconds=int(os.environ.get("DASHBOARD_REFRESH_SECONDS", "60")),
+                url_prefix=os.environ.get("URL_PREFIX", ""),
             ),
             logging=LoggingConfig(
                 level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -226,6 +228,7 @@ class Config:
             "dashboard": {
                 "port": self.dashboard.port,
                 "auto_refresh_seconds": self.dashboard.auto_refresh_seconds,
+                "url_prefix": self.dashboard.url_prefix,
             },
             "logging": {"level": self.logging.level},
         }

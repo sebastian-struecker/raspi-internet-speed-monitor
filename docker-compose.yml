@@ -7,11 +7,6 @@ services:
     restart: unless-stopped
     volumes:
       - data:/data
-    environment:
-      - SPEEDTEST_CRON=${SPEEDTEST_CRON:-* * * * *}
-      - DB_PATH=${DB_PATH:-/data/speedtest.db}
-      - DB_RETENTION_DAYS=${DB_RETENTION_DAYS:-90}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -32,11 +27,6 @@ services:
       - speedtest
     volumes:
       - data:/data:ro
-    environment:
-      - DB_PATH=${DB_PATH:-/data/speedtest.db}
-      - DASHBOARD_PORT=${DASHBOARD_PORT:-8080}
-      - DASHBOARD_REFRESH_SECONDS=${DASHBOARD_REFRESH_SECONDS:-60}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -49,7 +39,6 @@ services:
 
 networks:
   webapps_network:
-    external: true
 
 volumes:
   data:

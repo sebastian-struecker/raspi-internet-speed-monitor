@@ -1,0 +1,21 @@
+# Local development override
+# This file is automatically loaded by `docker compose up`
+# and is git-ignored for local customization
+
+services:
+  dashboard:
+    # Use local environment file
+    env_file:
+      - .env.local
+    # Port always exposed for local testing
+    ports:
+      - "${DASHBOARD_PORT:-8080}:8080"
+
+  speedtest:
+    env_file:
+      - .env.local
+
+# Local network (auto-created by compose)
+networks:
+  webapps_network:
+    external: false

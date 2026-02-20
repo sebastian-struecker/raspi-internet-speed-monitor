@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from typing import Any, Dict
 
-from flask import Flask, abort, jsonify, request, send_from_directory
+from flask import Blueprint, Flask, abort, jsonify, render_template, request
 
 from app.database import Database
 from app.models import Statistics
@@ -12,15 +12,24 @@ from app.models import Statistics
 logger = logging.getLogger(__name__)
 
 
-def create_app(db: Database) -> Flask:
+def create_app(db: Database, url_prefix: str = "") -> Flask:
     """Create and configure the Flask application.
 
     Args:
         db: Database instance
+        url_prefix: URL prefix for reverse proxy routing (e.g., '/internet-speed-dashboard')
     """
-    static_folder = os.path.join(os.path.dirname(__file__), "static")
-    app = Flask(__name__, static_folder=static_folder, static_url_path="/static")
+    # Configure Flask with template folder
+    template_folder = os.path.join(os.path.dirname(__file__), "templates")
+    app = Flask(__name__, template_folder=template_folder)
     app.config["DB"] = db
+
+    # Set APPLICATION_ROOT for proper url_for() generation behind reverse proxy
+    if url_prefix:
+        app.config["APPLICATION_ROOT"] = url_prefix
+
+    # Create Blueprint with url_prefix
+    bp = Blueprint("dashboard", __name__, url_prefix=url_prefix)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -46,7 +55,7 @@ def create_app(db: Database) -> Flask:
     # API endpoints
     # ------------------------------------------------------------------
 
-    @app.route("/api/history")
+    @bp.route("/api/history")
     def get_history():
         """Return results within a date range.
 
@@ -65,7 +74,7 @@ def create_app(db: Database) -> Flask:
         results = _db().query_range(start, end)
         return jsonify([r.to_dict() for r in results])
 
-    @app.route("/api/stats")
+    @bp.route("/api/stats")
     def get_statistics():
         """Return aggregate statistics (avg/min/max) for a date range.
 
@@ -115,9 +124,12 @@ def create_app(db: Database) -> Flask:
     # Frontend
     # ------------------------------------------------------------------
 
-    @app.route("/")
+    @bp.route("/")
     def index():
         """Serve the frontend."""
-        return send_from_directory(static_folder, "index.html")
+        return render_template("index.html", url_prefix=url_prefix)
+
+    # Register Blueprint
+    app.register_blueprint(bp)
 
     return app

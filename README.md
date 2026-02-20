@@ -58,19 +58,7 @@ git clone https://github.com/your-username/raspi-internet-speed-monitor.git
 cd raspi-internet-speed-monitor
 ```
 
-#### 2. Create your `.env` file
-
-```bash
-cp .env.example .env
-```
-
-Open `.env` and configure:
-- Set `URL_PREFIX=` (empty for standalone mode)
-- Adjust other variables as needed (all have sensible defaults)
-
-See the [Configuration reference](#configuration-reference) below.
-
-#### 3. Build and start the containers
+#### 2. Build and start the containers
 
 ```bash
 docker compose up -d --build
@@ -84,7 +72,7 @@ Verify containers are running:
 docker compose ps
 ```
 
-#### 4. Open the dashboard
+#### 3. Open the dashboard
 
 Navigate to `http://<raspberry-pi-ip>:8080` in your browser. The dashboard auto-refreshes every 60 seconds and displays
 a time-series chart of recent results.

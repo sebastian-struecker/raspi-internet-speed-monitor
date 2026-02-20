@@ -21,7 +21,7 @@ def main() -> None:
     setup_logging(config.logging.level)
 
     db = Database(config.database.path)
-    app = create_app(db)
+    app = create_app(db, url_prefix=config.dashboard.url_prefix)
     app.run(host="0.0.0.0", port=config.dashboard.port)
 
 
