@@ -15,7 +15,7 @@ def db():
 
 @pytest.fixture
 def client(db):
-    app = create_app(db, static_folder=None)
+    app = create_app(db)
     app.config["TESTING"] = True
     with app.test_client() as c:
         yield c
@@ -70,6 +70,22 @@ def test_history_returns_empty_list_when_no_match(client, db):
 def test_history_rejects_invalid_datetime(client):
     resp = client.get("/api/history?start=notadate&end=alsonotadate")
     assert resp.status_code == 400
+
+
+def test_history_accepts_utc_z_suffix(client, db):
+    """Verify that ISO datetime strings with 'Z' suffix are handled correctly."""
+    base = datetime(2024, 6, 1)
+    insert(db, base, download=100.0)
+    insert(db, base + timedelta(hours=1), download=200.0)
+
+    # Use ISO format with 'Z' suffix (as sent by JavaScript .toISOString())
+    start = base.isoformat() + 'Z'
+    end = (base + timedelta(hours=2)).isoformat() + 'Z'
+    resp = client.get(f"/api/history?start={start}&end={end}")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data) == 2
 
 
 # ---------------------------------------------------------------------------

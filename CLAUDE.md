@@ -92,9 +92,32 @@ All settings are read from environment variables via `Config.from_env()`:
 | `DB_RETENTION_DAYS`            | `90`                 | Days to keep results (0 = forever)    |
 | `DASHBOARD_PORT`               | `8080`               | Exposed port                          |
 | `DASHBOARD_REFRESH_SECONDS`    | `60`                 | Browser auto-refresh interval         |
+| `URL_PREFIX`                   | _(empty)_            | URL path prefix for reverse proxy (e.g., `/internet-speed-dashboard`) |
 | `LOG_LEVEL`                    | `INFO`               | `DEBUG`/`INFO`/`WARNING`/`ERROR`      |
 
 Copy `.env.example` to `.env` and fill in values before running `docker compose up`.
+
+## Multi-Application Deployment
+
+This project can be deployed standalone or behind an nginx reverse proxy for multi-application hosting.
+
+**Standalone mode** (default):
+- Dashboard accessible at `http://IP:8080/`
+- Set `URL_PREFIX=` (empty) in `.env`
+- Port 8080 exposed directly
+
+**Reverse proxy mode**:
+- Dashboard accessible at `http://IP:8080/internet-speed-dashboard/`
+- Set `URL_PREFIX=/internet-speed-dashboard` in `.env`
+- Join the external `webapps_network` Docker network
+- No direct port exposure (nginx handles routing)
+
+**Implementation details**:
+- Flask Blueprint with `url_prefix` parameter for path-based routing
+- `APPLICATION_ROOT` config ensures `url_for()` generates correct URLs
+- Jinja2 template renders `<base>` tag when prefix is set
+- Frontend in `app/templates/index.html` (moved from `app/static/`)
+- Backward compatible: empty prefix works for standalone deployment
 
 ## Testing
 

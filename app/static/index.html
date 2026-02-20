@@ -80,6 +80,21 @@
 <body>
   <h1>Internet Speed Monitor</h1>
 
+  <div class="controls">
+    <label>Timeframe
+      <select id="timeframeSelect" onchange="applyTimeframe()">
+        <option value="1">1 day</option>
+        <option value="3" selected>3 days</option>
+        <option value="7">7 days</option>
+        <option value="30">30 days</option>
+        <option value="custom">Custom</option>
+      </select>
+    </label>
+    <label>From <input type="datetime-local" id="startDt" step="3600" onchange="markCustom()" /></label>
+    <label>To   <input type="datetime-local" id="endDt" step="3600" onchange="markCustom()" /></label>
+    <button onclick="loadData()">Refresh</button>
+  </div>
+
   <div class="metrics">
     <div class="card">
       <div class="label">Avg Download</div>
@@ -97,16 +112,10 @@
       <div class="unit">ms</div>
     </div>
     <div class="card">
-      <div class="label">Tests Today</div>
+      <div class="label">Total Tests</div>
       <div class="value" style="font-size:1.5rem;padding-top:.6rem" id="testsToday">—</div>
       <div class="unit">&nbsp;</div>
     </div>
-  </div>
-
-  <div class="controls">
-    <label>From <input type="datetime-local" id="startDt" /></label>
-    <label>To   <input type="datetime-local" id="endDt" /></label>
-    <button onclick="loadHistory()">Load</button>
   </div>
 
   <div class="chart-card">
@@ -126,7 +135,7 @@
         datasets: [
           { label: 'Download (Mbps)', data: [], borderColor: '#34d399', tension: 0.3, fill: false },
           { label: 'Upload (Mbps)',   data: [], borderColor: '#60a5fa', tension: 0.3, fill: false },
-          { label: 'Ping (ms)',       data: [], borderColor: '#f472b6', tension: 0.3, fill: false, hidden: true }
+          { label: 'Ping (ms)',       data: [], borderColor: '#f472b6', tension: 0.3, fill: false }
         ]
       },
       options: {
@@ -139,14 +148,9 @@
       }
     });
 
-    // --- Today's averages ---
-    async function loadTodayStats() {
-      const now = new Date();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const start = startOfDay.toISOString();
-      const end = now.toISOString();
-
-      const res = await fetch(`/api/stats?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+    // --- Stats for selected period ---
+    async function loadStats(start, end) {
+      const res = await fetch(`api/stats?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
       const data = await res.json();
 
       if (!data) {
@@ -164,30 +168,61 @@
     }
 
     // --- History chart ---
-    async function loadHistory() {
-      const start = document.getElementById('startDt').value;
-      const end   = document.getElementById('endDt').value;
-      if (!start || !end) return;
-
-      const res  = await fetch(`/api/history?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+    async function loadHistory(start, end) {
+      const res  = await fetch(`api/history?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
       const data = await res.json();
 
       // Exclude failed tests so their 0-values don't distort the chart
       const ok = data.filter(r => r.success);
-      chart.data.labels             = ok.map(r => new Date(r.timestamp).toLocaleTimeString());
+      chart.data.labels             = ok.map(r => new Date(r.timestamp).toLocaleString());
       chart.data.datasets[0].data  = ok.map(r => r.download_mbps);
       chart.data.datasets[1].data  = ok.map(r => r.upload_mbps);
       chart.data.datasets[2].data  = ok.map(r => r.ping_ms);
       chart.update();
     }
 
-    // --- Default range: last 24 hours ---
+    // --- Load both stats and history ---
+    async function loadData() {
+      const start = document.getElementById('startDt').value;
+      const end   = document.getElementById('endDt').value;
+      if (!start || !end) return;
+
+      await loadStats(start, end);
+      await loadHistory(start, end);
+    }
+
+    // --- Timeframe helpers ---
+    function formatDateTime(date) {
+      // Format to YYYY-MM-DDTHH:00 (hour precision)
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hour = String(date.getHours()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hour}:00`;
+    }
+
+    function setDateRange(days) {
+      const now = new Date();
+      const since = new Date(now - days * 24 * 60 * 60 * 1000);
+      document.getElementById('startDt').value = formatDateTime(since);
+      document.getElementById('endDt').value = formatDateTime(now);
+    }
+
+    function applyTimeframe() {
+      const select = document.getElementById('timeframeSelect');
+      const value = select.value;
+      if (value !== 'custom') {
+        setDateRange(parseInt(value));
+        loadData();
+      }
+    }
+
+    function markCustom() {
+      document.getElementById('timeframeSelect').value = 'custom';
+    }
+
     function setDefaultRange() {
-      const now   = new Date();
-      const since = new Date(now - 24 * 60 * 60 * 1000);
-      const fmt   = d => d.toISOString().slice(0, 16);
-      document.getElementById('startDt').value = fmt(since);
-      document.getElementById('endDt').value   = fmt(now);
+      setDateRange(3); // Default: 3 days
     }
 
     // --- Auto-refresh ---
@@ -198,8 +233,7 @@
     }
 
     async function refresh() {
-      await loadTodayStats();
-      await loadHistory();
+      await loadData();
       scheduleRefresh();
     }
 

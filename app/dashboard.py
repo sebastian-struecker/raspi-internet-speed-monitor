@@ -1,5 +1,6 @@
 """Flask dashboard: REST API + static frontend for speed test visualisation."""
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict
 
@@ -11,13 +12,14 @@ from app.models import Statistics
 logger = logging.getLogger(__name__)
 
 
-def create_app(db: Database, static_folder: str = None) -> Flask:
-    """Create and configure the Flask application."""
-    import os
-    if static_folder is None:
-        static_folder = os.path.join(os.path.dirname(__file__), "static")
+def create_app(db: Database) -> Flask:
+    """Create and configure the Flask application.
 
-    app = Flask(__name__, static_folder=static_folder)
+    Args:
+        db: Database instance
+    """
+    static_folder = os.path.join(os.path.dirname(__file__), "static")
+    app = Flask(__name__, static_folder=static_folder, static_url_path="/static")
     app.config["DB"] = db
 
     # ------------------------------------------------------------------
@@ -29,7 +31,14 @@ def create_app(db: Database, static_folder: str = None) -> Flask:
 
     def _parse_dt(value: str, param_name: str) -> datetime:
         try:
-            return datetime.fromisoformat(value)
+            # Replace 'Z' suffix with '+00:00' for compatibility with Python 3.9
+            if value.endswith('Z'):
+                value = value[:-1] + '+00:00'
+            dt = datetime.fromisoformat(value)
+            # Convert to naive datetime (remove timezone info)
+            if dt.tzinfo is not None:
+                dt = dt.replace(tzinfo=None)
+            return dt
         except (ValueError, TypeError):
             abort(400, description=f"Invalid ISO datetime for '{param_name}': {value!r}")
 
@@ -108,6 +117,7 @@ def create_app(db: Database, static_folder: str = None) -> Flask:
 
     @app.route("/")
     def index():
-        return send_from_directory(app.static_folder, "index.html")
+        """Serve the frontend."""
+        return send_from_directory(static_folder, "index.html")
 
     return app

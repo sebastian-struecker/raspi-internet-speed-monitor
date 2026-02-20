@@ -1,20 +1,37 @@
 # Raspi Internet Speed Monitor
 
-> Warning: This project was vibe-coded. Please help in making this even better.
-
 A self-hosted internet speed monitor designed to run on a **Raspberry Pi**. It periodically measures download/upload
-speeds and ping, stores results in a local SQLite database, exports them to Google Sheets, and serves a live dashboard
-in your browser.
+speeds and ping, stores results in a local SQLite database, and serves a live dashboard in your browser.
+
+## Features
+
+- 📊 **Real-time Dashboard** - Chart.js visualization with historical data
+- ⏰ **Scheduled Tests** - Configurable CRON-based speed test execution
+- 💾 **SQLite Storage** - Local database with configurable retention
+- 🐳 **Docker Compose** - Easy deployment with Docker
+- 🔄 **Auto-refresh** - Live updates without manual refresh
+- 🌐 **Multi-app Support** - Can run behind nginx reverse proxy with other applications
+
+## Deployment Modes
+
+### Standalone Mode (Default)
+
+Dashboard accessible directly at `http://<raspberry-pi-ip>:8080/`
+
+### Reverse Proxy Mode
+
+Dashboard accessible at `http://<raspberry-pi-ip>:8080/internet-speed-dashboard/` alongside other web applications.
+
+---
 
 ## How it works
 
-Three Docker containers run as a stack and communicate through a shared SQLite volume:
+Two Docker containers run as a stack and communicate through a shared SQLite volume:
 
 | Container         | Role                                                                 |
 |-------------------|----------------------------------------------------------------------|
 | **speedtest**     | Runs speed tests on a CRON schedule; also handles daily data cleanup |
-| **exporter**      | Polls the database and appends new results to a Google Sheet         |
-| **dashboard**     | Flask REST API + Chart.js web UI, accessible on port 8080            |
+| **dashboard**     | Flask REST API + Chart.js web UI                                     |
 | *(shared volume)* | SQLite database file (`/data/speedtest.db`)                          |
 
 All settings are controlled by environment variables — no config files to mount or edit.
@@ -32,23 +49,28 @@ All settings are controlled by environment variables — no config files to moun
 
 ## Installation
 
-### 1. Clone the repository
+### Standalone Deployment
+
+#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/your-username/raspi-internet-speed-monitor.git
 cd raspi-internet-speed-monitor
 ```
 
-### 2. Create your `.env` file
+#### 2. Create your `.env` file
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and fill in your values.
-All variables have sensible defaults. See the [Configuration reference](#configuration-reference) below.
+Open `.env` and configure:
+- Set `URL_PREFIX=` (empty for standalone mode)
+- Adjust other variables as needed (all have sensible defaults)
 
-### 3. Build and start the containers
+See the [Configuration reference](#configuration-reference) below.
+
+#### 3. Build and start the containers
 
 ```bash
 docker compose up -d --build
@@ -56,16 +78,32 @@ docker compose up -d --build
 
 The first build takes a few minutes while Python dependencies are installed. Subsequent starts are fast.
 
-Verify all three containers are running:
+Verify containers are running:
 
 ```bash
 docker compose ps
 ```
 
-### 4. Open the dashboard
+#### 4. Open the dashboard
 
 Navigate to `http://<raspberry-pi-ip>:8080` in your browser. The dashboard auto-refreshes every 60 seconds and displays
 a time-series chart of recent results.
+
+### Reverse Proxy Deployment
+
+For multi-application deployment with nginx reverse proxy:
+
+1. **Set up nginx reverse proxy**
+2. **Configure this project**:
+   ```bash
+   # Edit .env
+   URL_PREFIX=/internet-speed-dashboard
+   ```
+3. **Deploy**:
+   ```bash
+   docker compose up -d --build
+   ```
+4. **Access**: `http://<raspberry-pi-ip>:8080/internet-speed-dashboard/`
 
 ---
 
@@ -118,11 +156,9 @@ All settings are read from environment variables (defined in `.env`).
 | `SPEEDTEST_CRON`               | `0 * * * *`          | 5-field CRON expression for test timing. Falls back to hourly if invalid.           |
 | `DB_PATH`                      | `/data/speedtest.db` | Path inside the container (mapped to the `data` Docker volume).                     |
 | `DB_RETENTION_DAYS`            | `90`                 | Days to keep results. Set to `0` to keep data indefinitely.                         |
-| `GOOGLE_SHEETS_ENABLED`        | `true`               | Set to `false` to disable Google Sheets export entirely.                            |
-| `GOOGLE_SHEETS_SPREADSHEET_ID` | *(empty)*            | Required when `GOOGLE_SHEETS_ENABLED=true`.                                         |
-| `GOOGLE_SERVICE_ACCOUNT_JSON`  | *(empty)*            | Full contents of the service account JSON key (single line). Required when enabled. |
-| `DASHBOARD_PORT`               | `8080`               | Host port the web UI is exposed on.                                                 |
+| `DASHBOARD_PORT`               | `8080`               | Internal port the Flask app listens on.                                             |
 | `DASHBOARD_REFRESH_SECONDS`    | `60`                 | How often the browser auto-refreshes metrics.                                       |
+| `URL_PREFIX`                   | _(empty)_            | URL path prefix for reverse proxy (e.g., `/internet-speed-dashboard`). Leave empty for standalone. |
 | `LOG_LEVEL`                    | `INFO`               | Log verbosity: `DEBUG`, `INFO`, `WARNING`, or `ERROR`.                              |
 
 ---
@@ -136,16 +172,20 @@ All settings are read from environment variables (defined in `.env`).
 │   ├── database.py          # SQLite wrapper
 │   ├── speedtest_runner.py  # Speed test execution and retry logic
 │   ├── scheduler.py         # CRON scheduling via APScheduler
-│   ├── dashboard.py         # Flask REST API (/api/current, /api/history, /api/stats)
-│   ├── static/index.html    # Chart.js web dashboard
+│   ├── dashboard.py         # Flask REST API with Blueprint support
+│   ├── templates/
+│   │   └── index.html       # Chart.js web dashboard (Jinja2 template)
+│   ├── static/              # Static assets (currently empty)
 │   └── *_service.py         # Container entry points
 ├── tests/
-│   ├── unit/                # pytest unit tests
-│   └── property/            # Hypothesis property-based tests (24 correctness properties)
-├── .env.example             # Environment variable template — copy to .env and fill in
-├── docker-compose.yml
+│   ├── unit/                # pytest unit tests (95 tests)
+│   └── property/            # Hypothesis property-based tests
+├── .env.example             # Environment variable template
+├── .env                     # Your local configuration (not committed)
+├── docker-compose.yml       # Service definitions
 ├── Dockerfile.speedtest
 ├── Dockerfile.dashboard
+├── NGINX_PROXY_SETUP.md     # Guide for setting up reverse proxy
 └── internet-speedtest.service  # systemd unit for auto-start
 ```
 
@@ -160,7 +200,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 
-# All tests
+# All tests (95 total)
 pytest tests/ -v
 
 # Unit tests only
@@ -172,3 +212,49 @@ pytest tests/property/ -v --hypothesis-show-statistics
 # Single test file
 pytest tests/unit/test_database.py -v
 ```
+
+---
+
+## Architecture
+
+### Standalone Mode
+
+```
+Internet → Port 8080 → Dashboard (Flask) → SQLite DB ← Speedtest Runner
+```
+
+### Reverse Proxy Mode
+
+```
+Internet → Port 8080 → nginx → /internet-speed-dashboard/ → Dashboard (Flask)
+                              → /other-app/ → Other Application
+
+All apps communicate via Docker network: webapps_network
+```
+
+---
+
+## Development
+
+See [CLAUDE.md](./CLAUDE.md) for development documentation including:
+- Architecture details
+- Testing strategy
+- Configuration management
+- Multi-application deployment
+
+---
+
+## License
+
+MIT
+
+---
+
+## Contributing
+
+Contributions welcome! This project was initially "vibe-coded" and can always be improved.
+
+Please:
+- Run tests before submitting PRs
+- Follow the existing code style
+- Update documentation for new features
