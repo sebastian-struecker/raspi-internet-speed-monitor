@@ -15,6 +15,8 @@ def setup_logging(level: str) -> None:
         level=getattr(logging, level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s — %(message)s",
     )
+    # Enable APScheduler job execution logging
+    logging.getLogger("apscheduler.executors.default").setLevel(logging.INFO)
 
 
 def run_cleanup(db: Database, config: Config) -> None:
@@ -38,6 +40,16 @@ def main() -> None:
     setup_logging(config.logging.level)
     logger = logging.getLogger(__name__)
 
+    logger.info("=" * 60)
+    logger.info("🚀 Speedtest Service Starting")
+    logger.info("=" * 60)
+    logger.info("Configuration:")
+    logger.info("  CRON Schedule:    %s", config.schedule.cron)
+    logger.info("  Database Path:    %s", config.database.path)
+    logger.info("  Retention Days:   %s", config.database.retention_days)
+    logger.info("  Log Level:        %s", config.logging.level)
+    logger.info("=" * 60)
+
     errors = config.validate()
     for err in errors:
         logger.error("Config validation error: %s", err)
@@ -47,7 +59,22 @@ def main() -> None:
 
     cleanup_scheduler = run_cleanup(db, config)
 
-    scheduler = Scheduler(cron=config.schedule.cron, on_trigger=runner.run_and_store)
+    # Wrap the runner to add job-level logging
+    def run_speedtest_job():
+        logger.info("⏱️  Speedtest job triggered")
+        try:
+            result = runner.run_and_store()
+            if result:
+                if result.success:
+                    logger.info("✓ Speedtest job completed successfully")
+                else:
+                    logger.warning("⚠️  Speedtest job completed with failure: %s", result.error_message)
+            else:
+                logger.error("✗ Speedtest job failed to store result")
+        except Exception as exc:
+            logger.exception("✗ Speedtest job crashed: %s", exc)
+
+    scheduler = Scheduler(cron=config.schedule.cron, on_trigger=run_speedtest_job)
     try:
         scheduler.run()
     finally:

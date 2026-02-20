@@ -40,8 +40,19 @@ class SpeedtestRunner:
 
             logger.info("Starting speed test…")
             st = _st_module.Speedtest(secure=True)
+
+            logger.info("  → Finding best server…")
             st.get_best_server()
+            server_info = st.results.server
+            logger.info("  → Using server: %s (%s, %s)",
+                       server_info.get('host', 'unknown'),
+                       server_info.get('sponsor', 'unknown'),
+                       server_info.get('country', 'unknown'))
+
+            logger.info("  → Testing download speed…")
             st.download()
+
+            logger.info("  → Testing upload speed…")
             st.upload()
 
             results = st.results.dict()
