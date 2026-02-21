@@ -115,8 +115,8 @@
       <div class="unit">ms</div>
     </div>
     <div class="card">
-      <div class="label">Total Tests</div>
-      <div class="value" style="font-size:1.5rem;padding-top:.6rem" id="testsToday">—</div>
+      <div class="label">Tests</div>
+      <div class="value" style="font-size:1.5rem;padding-top:.6rem" id="testsCount">—</div>
       <div class="unit">&nbsp;</div>
     </div>
   </div>
@@ -160,14 +160,14 @@
         document.getElementById('avgDl').textContent = '—';
         document.getElementById('avgUl').textContent = '—';
         document.getElementById('avgPing').textContent = '—';
-        document.getElementById('testsToday').textContent = '0';
+        document.getElementById('testsCount').textContent = '0';
         return;
       }
 
       document.getElementById('avgDl').textContent = data.averages.download_mbps.toFixed(1);
       document.getElementById('avgUl').textContent = data.averages.upload_mbps.toFixed(1);
       document.getElementById('avgPing').textContent = data.averages.ping_ms.toFixed(0);
-      document.getElementById('testsToday').textContent = data.tests.total;
+      document.getElementById('testsCount').textContent = data.tests.total - data.tests.failed;
     }
 
     // --- History chart ---
