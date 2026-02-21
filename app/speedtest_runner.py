@@ -24,6 +24,7 @@ class SpeedtestRunner:
     """Executes speed tests and persists results with retry logic."""
 
     MAX_RETRIES = 3
+    TEST_RETRIES = 3
 
     def __init__(self, db: Database) -> None:
         self.db = db
@@ -33,69 +34,73 @@ class SpeedtestRunner:
     # ------------------------------------------------------------------
 
     def execute_test(self) -> SpeedTestResult:
-        """Run a speed test and return the result (success or failure record)."""
-        try:
-            if _st_module is None:
-                raise ImportError("speedtest-cli is not installed")
+        """Run a speed test with retries; returns success or final failure record."""
+        last_exc: Optional[Exception] = None
 
-            logger.info("Starting speed test…")
-            # Try secure=True first, fall back to secure=False if it fails
+        for attempt in range(self.TEST_RETRIES):
+            if attempt > 0:
+                wait = 2 ** attempt
+                logger.warning("  Retrying in %ds (attempt %d/%d)…", wait, attempt + 1, self.TEST_RETRIES)
+                time.sleep(wait)
+
             try:
-                st = _st_module.Speedtest(secure=True)
-                logger.debug("  Using secure HTTPS connection")
-            except Exception as e:
-                logger.warning("  Secure connection failed (%s), trying insecure", e)
-                st = _st_module.Speedtest(secure=False)
+                if _st_module is None:
+                    raise ImportError("speedtest-cli is not installed")
 
-            logger.info("  → Finding best server…")
-            st.get_best_server()
-            server_info = st.results.server
-            logger.info("  → Using server: %s (%s, %s)",
-                       server_info.get('host', 'unknown'),
-                       server_info.get('sponsor', 'unknown'),
-                       server_info.get('country', 'unknown'))
+                logger.info("Starting speed test…")
+                try:
+                    st = _st_module.Speedtest(secure=True)
+                    logger.debug("  Using secure HTTPS connection")
+                except Exception as e:
+                    logger.warning("  Secure connection failed (%s), trying insecure", e)
+                    st = _st_module.Speedtest(secure=False)
 
-            logger.info("  → Testing download speed…")
-            st.download()
+                logger.info("  → Finding best server…")
+                st.get_best_server()
+                server_info = st.results.server
+                logger.info("  → Using server: %s (%s, %s)",
+                           server_info.get('host', 'unknown'),
+                           server_info.get('sponsor', 'unknown'),
+                           server_info.get('country', 'unknown'))
 
-            logger.info("  → Testing upload speed…")
-            st.upload()
+                logger.info("  → Testing download speed…")
+                st.download()
 
-            results = st.results.dict()
+                logger.info("  → Testing upload speed…")
+                st.upload()
 
-            result = SpeedTestResult(
-                timestamp=_utcnow(),
-                download_mbps=results["download"] / 1_000_000,
-                upload_mbps=results["upload"] / 1_000_000,
-                ping_ms=results["ping"],
-                test_server=results.get("server", {}).get("host"),
-                success=True,
-            )
-            logger.info(
-                "Speed test complete: ↓%.1f Mbps  ↑%.1f Mbps  ping=%.0f ms",
-                result.download_mbps,
-                result.upload_mbps,
-                result.ping_ms,
-            )
-            return result
+                results = st.results.dict()
 
-        except Exception as exc:
-            logger.error("Speed test failed: %s", exc)
-            logger.debug("Full exception details:", exc_info=True)
-            # Log additional debugging info
-            import sys
-            logger.debug("  Python version: %s", sys.version)
-            logger.debug("  speedtest-cli module: %s", _st_module)
-            if hasattr(exc, '__dict__'):
-                logger.debug("  Exception attributes: %s", exc.__dict__)
-            return SpeedTestResult(
-                timestamp=_utcnow(),
-                download_mbps=0.0,
-                upload_mbps=0.0,
-                ping_ms=0.0,
-                success=False,
-                error_message=str(exc),
-            )
+                result = SpeedTestResult(
+                    timestamp=_utcnow(),
+                    download_mbps=results["download"] / 1_000_000,
+                    upload_mbps=results["upload"] / 1_000_000,
+                    ping_ms=results["ping"],
+                    test_server=results.get("server", {}).get("host"),
+                    success=True,
+                )
+                logger.info(
+                    "Speed test complete: ↓%.1f Mbps  ↑%.1f Mbps  ping=%.0f ms",
+                    result.download_mbps,
+                    result.upload_mbps,
+                    result.ping_ms,
+                )
+                return result
+
+            except Exception as exc:
+                last_exc = exc
+                logger.warning("Speed test attempt %d/%d failed: %s", attempt + 1, self.TEST_RETRIES, exc)
+                logger.debug("Full exception details:", exc_info=True)
+
+        logger.error("Speed test failed after %d attempts: %s", self.TEST_RETRIES, last_exc)
+        return SpeedTestResult(
+            timestamp=_utcnow(),
+            download_mbps=0.0,
+            upload_mbps=0.0,
+            ping_ms=0.0,
+            success=False,
+            error_message=str(last_exc),
+        )
 
     # ------------------------------------------------------------------
     # Persistence with retry
